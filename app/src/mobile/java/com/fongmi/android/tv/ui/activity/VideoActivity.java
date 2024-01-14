@@ -44,7 +44,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
-import com.fongmi.android.tv.api.ApiConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
 import com.fongmi.android.tv.bean.History;
@@ -115,7 +115,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 
 import master.flame.danmaku.danmaku.model.BaseDanmaku;
-import master.flame.danmaku.danmaku.model.IDisplay;
+import master.flame.danmaku.danmaku.model.IDisplayer;
 import master.flame.danmaku.danmaku.model.android.DanmakuContext;
 import tv.danmaku.ijk.media.player.ui.IjkVideoView;
 
@@ -222,11 +222,11 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private String getHistoryKey() {
-        return getKey().concat(AppDatabase.SYMBOL).concat(getId()).concat(AppDatabase.SYMBOL) + ApiConfig.getCid();
+        return getKey().concat(AppDatabase.SYMBOL).concat(getId()).concat(AppDatabase.SYMBOL) + VodConfig.getCid();
     }
 
     private Site getSite() {
-        return ApiConfig.get().getSite(getKey());
+        return VodConfig.get().getSite(getKey());
     }
 
     private Flag getFlag() {
@@ -414,11 +414,14 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     private void setDanmuView() {
         mPlayers.setDanmuView(mBinding.danmaku);
         HashMap<Integer, Integer> maxLines = new HashMap<>();
-        maxLines.put(BaseDanmaku.TYPE_FIX_TOP, 2);
-        maxLines.put(BaseDanmaku.TYPE_SCROLL_RL, 2);
-        maxLines.put(BaseDanmaku.TYPE_SCROLL_LR, 2);
-        maxLines.put(BaseDanmaku.TYPE_FIX_BOTTOM, 1);
-        mDanmakuContext.setDanmakuStyle(IDisplay.DANMAKU_STYLE_STROKEN, 3).setMaximumLines(maxLines).setDanmakuMargin(8).setScaleTextSize(0.8f);
+        float scrollSpeedFactor = 1.6f - (Setting.getDanmuSpeed() * 0.2f);
+        scrollSpeedFactor = scrollSpeedFactor < 0 ? 1.2f : scrollSpeedFactor;
+        int maxLine = Setting.getDanmuMaxLine(2);
+        maxLines.put(BaseDanmaku.TYPE_FIX_TOP, maxLine);
+        maxLines.put(BaseDanmaku.TYPE_SCROLL_RL, maxLine);
+        maxLines.put(BaseDanmaku.TYPE_SCROLL_LR, maxLine);
+        maxLines.put(BaseDanmaku.TYPE_FIX_BOTTOM, maxLine);
+        mDanmakuContext.setDanmakuStyle(IDisplayer.DANMAKU_STYLE_STROKEN, 3).setMaximumLines(maxLines).setScrollSpeedFactor(scrollSpeedFactor).setDanmakuMargin(8).setScaleTextSize(0.8f);
         checkDanmuImg();
     }
 
@@ -571,7 +574,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
 
     private void setPlayer(Result result) {
         result.getUrl().set(mQualityAdapter.getPosition());
-        setUseParse(ApiConfig.hasParse() && ((result.getPlayUrl().isEmpty() && ApiConfig.get().getFlags().contains(result.getFlag())) || result.getJx() == 1));
+        setUseParse(VodConfig.hasParse() && ((result.getPlayUrl().isEmpty() && VodConfig.get().getFlags().contains(result.getFlag())) || result.getJx() == 1));
         if (mControlDialog != null && mControlDialog.isVisible()) mControlDialog.setParseVisible(isUseParse());
         mBinding.control.parse.setVisibility(isFullscreen() && isUseParse() ? View.VISIBLE : View.GONE);
         mPlayers.start(result, isUseParse(), getSite().isChangeable() ? getSite().getTimeout() : -1);
@@ -631,7 +634,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private void setParse(Parse item) {
-        ApiConfig.get().setParse(item);
+        VodConfig.get().setParse(item);
         notifyItemChanged(mParseAdapter);
         if (mControlDialog != null && mControlDialog.isVisible()) mControlDialog.updateParse();
     }
@@ -887,11 +890,12 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         if (mPlayers.isEmpty()) return false;
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.putExtra("return_result", true);
         intent.putExtra("headers", mPlayers.getHeaderArray());
         intent.putExtra("position", (int) mPlayers.getPosition());
         intent.putExtra("title", mBinding.control.title.getText());
-        intent.setDataAndType(Uri.parse(mPlayers.getUrl()), "video/*");
+        intent.setDataAndType(mPlayers.getUri(), "video/*");
         startActivityForResult(Util.getChooser(intent), 1001);
         setRedirect(true);
         return true;
@@ -1087,7 +1091,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     private History createHistory(Vod item) {
         History history = new History();
         history.setKey(getHistoryKey());
-        history.setCid(ApiConfig.getCid());
+        history.setCid(VodConfig.getCid());
         history.setVodPic(item.getVodPic());
         history.setVodName(item.getVodName());
         history.findEpisode(item.getVodFlags());
@@ -1125,7 +1129,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     private void createKeep() {
         Keep keep = new Keep();
         keep.setKey(getHistoryKey());
-        keep.setCid(ApiConfig.getCid());
+        keep.setCid(VodConfig.getCid());
         keep.setSiteName(getSite().getName());
         keep.setVodPic(mBinding.video.getTag().toString());
         keep.setVodName(mBinding.name.getText().toString());
@@ -1345,7 +1349,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         mQuickAdapter.clear();
         List<Site> sites = new ArrayList<>();
         mExecutor = Executors.newFixedThreadPool(Constant.THREAD_POOL * 2);
-        for (Site item : ApiConfig.get().getSites()) if (isPass(item)) sites.add(item);
+        for (Site item : VodConfig.get().getSites()) if (isPass(item)) sites.add(item);
         for (Site site : sites) mExecutor.execute(() -> search(site, keyword));
     }
 

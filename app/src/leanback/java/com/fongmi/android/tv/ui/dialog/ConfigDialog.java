@@ -12,9 +12,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.api.ApiConfig;
-import com.fongmi.android.tv.api.LiveConfig;
-import com.fongmi.android.tv.api.WallConfig;
+import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.databinding.DialogConfigBinding;
 import com.fongmi.android.tv.event.ServerEvent;
@@ -23,7 +23,6 @@ import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
 import com.fongmi.android.tv.utils.QRCode;
 import com.fongmi.android.tv.utils.ResUtil;
-import com.fongmi.android.tv.utils.UrlUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.permissionx.guolindev.PermissionX;
 
@@ -109,7 +108,7 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
     private String getUrl() {
         switch (type) {
             case 0:
-                return ApiConfig.getUrl();
+                return VodConfig.getUrl();
             case 1:
                 return LiveConfig.getUrl();
             case 2:
@@ -141,7 +140,7 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
     }
 
     private void onPositive(View view) {
-        String text = UrlUtil.fixUrl(binding.text.getText().toString().trim());
+        String text = binding.text.getText().toString().trim();
         if (edit) Config.find(url, type).url(text).update();
         if (text.isEmpty()) Config.delete(url, type);
         callback.setConfig(Config.find(text, type));

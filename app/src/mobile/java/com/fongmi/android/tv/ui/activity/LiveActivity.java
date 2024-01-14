@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.media.MediaMetadataCompat;
@@ -29,7 +28,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
-import com.fongmi.android.tv.api.LiveConfig;
+import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.bean.Channel;
 import com.fongmi.android.tv.bean.Epg;
 import com.fongmi.android.tv.bean.Group;
@@ -135,7 +134,7 @@ public class LiveActivity extends BaseActivity implements CustomKeyDownLive.List
     }
 
     private int getTimeout() {
-        return getHome() != null ? getHome().getTimeout() : Constant.TIMEOUT_PLAY;
+        return getHome().isEmpty() ? Constant.TIMEOUT_PLAY : getHome().getTimeout();
     }
 
     @Override
@@ -434,9 +433,10 @@ public class LiveActivity extends BaseActivity implements CustomKeyDownLive.List
         if (mPlayers.isEmpty()) return false;
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.putExtra("headers", mPlayers.getHeaderArray());
         intent.putExtra("title", mBinding.control.title.getText());
-        intent.setDataAndType(Uri.parse(mPlayers.getUrl()), "video/*");
+        intent.setDataAndType(mPlayers.getUri(), "video/*");
         startActivity(Util.getChooser(intent));
         setRedirect(true);
         return true;
@@ -727,7 +727,6 @@ public class LiveActivity extends BaseActivity implements CustomKeyDownLive.List
                 showProgress();
                 break;
             case Player.STATE_READY:
-                checkRotate();
                 setMetadata();
                 resetToggle();
                 hideProgress();
@@ -741,13 +740,6 @@ public class LiveActivity extends BaseActivity implements CustomKeyDownLive.List
             case Player.STATE_ENDED:
                 nextChannel();
                 break;
-        }
-    }
-
-    private void checkRotate() {
-        if (!isRotate() && mPlayers.isPortrait()) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
-            setRotate(true);
         }
     }
 

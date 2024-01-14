@@ -21,7 +21,7 @@ import androidx.annotation.NonNull;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.Setting;
-import com.fongmi.android.tv.api.ApiConfig;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.utils.Sniffer;
@@ -61,14 +61,18 @@ public class CustomWebView extends WebView {
     public void initSettings() {
         this.timer = () -> stop(true);
         this.empty = new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream("".getBytes()));
+        getSettings().setSupportZoom(true);
         getSettings().setUseWideViewPort(true);
         getSettings().setDatabaseEnabled(true);
         getSettings().setDomStorageEnabled(true);
         getSettings().setJavaScriptEnabled(true);
+        getSettings().setBuiltInZoomControls(true);
+        getSettings().setDisplayZoomControls(false);
         getSettings().setLoadWithOverviewMode(true);
         getSettings().setMediaPlaybackRequiresUserGesture(false);
         getSettings().setJavaScriptCanOpenWindowsAutomatically(false);
         getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
         setWebViewClient(webViewClient());
     }
 
@@ -102,7 +106,7 @@ public class CustomWebView extends WebView {
                 String url = request.getUrl().toString();
                 String host = request.getUrl().getHost();
                 Map<String, String> headers = request.getRequestHeaders();
-                if (TextUtils.isEmpty(host) || ApiConfig.get().getAds().contains(host)) return empty;
+                if (TextUtils.isEmpty(host) || VodConfig.get().getAds().contains(host)) return empty;
                 if (url.contains("challenges.cloudflare.com/cdn-cgi")) App.post(() -> showDialog());
                 if (detect && url.contains("player/?url=")) onParseAdd(headers, url);
                 else if (isVideoFormat(headers, url)) interrupt(headers, url);
@@ -165,8 +169,8 @@ public class CustomWebView extends WebView {
     private boolean isVideoFormat(Map<String, String> headers, String url) {
         try {
             Logger.t(TAG).d(url);
-            Site site = ApiConfig.get().getSite(key);
-            Spider spider = ApiConfig.get().getSpider(site);
+            Site site = VodConfig.get().getSite(key);
+            Spider spider = VodConfig.get().getSpider(site);
             if (spider.manualVideoCheck()) return spider.isVideoFormat(url);
             return Sniffer.isVideoFormat(url, headers);
         } catch (Exception ignored) {

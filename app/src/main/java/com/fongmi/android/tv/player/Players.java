@@ -32,6 +32,7 @@ import com.fongmi.android.tv.event.ErrorEvent;
 import com.fongmi.android.tv.event.PlayerEvent;
 import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.impl.SessionCallback;
+import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
@@ -49,6 +50,8 @@ import java.util.Locale;
 import java.util.Map;
 
 import master.flame.danmaku.controller.DrawHandler;
+import master.flame.danmaku.danmaku.model.BaseDanmaku;
+import master.flame.danmaku.danmaku.model.DanmakuTimer;
 import master.flame.danmaku.ui.widget.DanmakuView;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.ui.IjkVideoView;
@@ -140,7 +143,8 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, Analytic
     }
 
     public void setDanmuView(DanmakuView view) {
-        danmuView = view.setCallback(this);
+        view.setCallback(this);
+        danmuView = view;
     }
 
     public void setSub(Sub sub) {
@@ -169,6 +173,10 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, Analytic
 
     public String getUrl() {
         return url;
+    }
+
+    public Uri getUri() {
+        return getUrl().startsWith("file://") || getUrl().startsWith("/") ? FileUtil.getShareUri(getUrl()) : Uri.parse(getUrl());
     }
 
     public void clean() {
@@ -278,7 +286,6 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, Analytic
     public String setSpeed(float speed) {
         if (exoPlayer != null) exoPlayer.setPlaybackSpeed(speed);
         if (ijkPlayer != null) ijkPlayer.setSpeed(speed);
-        if (hasDanmu()) danmuView.setSpeed(speed);
         return getSpeedText();
     }
 
@@ -655,7 +662,27 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, Analytic
     public void prepared() {
         App.post(() -> {
             if (danmuView == null) return;
-            if (isPlaying() && danmuView.isPrepared()) danmuView.start(getPosition(), Setting.isDanmu());
+            if (isPlaying() && danmuView.isPrepared()) {
+                danmuView.start(getPosition());
+                if (Setting.isDanmu()) danmuView.show();
+                else danmuView.hide();
+            }
         });
     }
+
+    @Override
+    public void updateTimer(DanmakuTimer timer) {
+        App.post(() -> timer.update(getPosition()));
+    }
+
+    @Override
+    public void danmakuShown(BaseDanmaku danmaku) {
+
+    }
+
+    @Override
+    public void drawingFinished() {
+
+    }
+
 }
